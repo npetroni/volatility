@@ -272,10 +272,14 @@ class AMD64PagedMemory(paged.AbstractWritablePagedMemory):
                     continue
 
                 pgd_curr = self.pdba_base(pdpte_value)
+                prev_pgd_entry = None
                 for j in range(0, ptrs_per_pae_pgd):
                     soffset = vaddr + (j * ptrs_per_pae_pgd * ptrs_per_pae_pte * 8)
                     entry = self.read_long_long_phys(pgd_curr)
                     pgd_curr = pgd_curr + 8
+                    if prev_pgd_entry == entry:
+                        continue
+                    prev_pgd_entry = entry
                     if self.entry_present(entry) and self.page_size_flag(entry):
                         if with_pte: 
                             yield (entry, soffset, 0x200000)
@@ -283,8 +287,12 @@ class AMD64PagedMemory(paged.AbstractWritablePagedMemory):
                             yield (soffset, 0x200000)
                     elif self.entry_present(entry):
                         pte_curr = entry & 0xFFFFFFFFFF000
+                        prev_pte_entry = None
                         for k in range(0, ptrs_per_pae_pte):
                             pte_entry = self.read_long_long_phys(pte_curr)
+                            if prev_pte_entry == pte_entry:
+                                continue
+                            prev_pte_entry = pte_entry
                             pte_curr = pte_curr + 8
                             if self.entry_present(pte_entry):
                                 if with_pte:
